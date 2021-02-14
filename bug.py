@@ -6,20 +6,23 @@ Source: https://sites.google.com/site/ece452bugalgorithms/
 
 import numpy as np
 import matplotlib.pyplot as plt
+import time, math
 
 show_animation = True
+
 
 
 class BugPlanner:
     def __init__(self, start_x, start_y, goal_x, goal_y, obs_x, obs_y):
         self.goal_x = goal_x
         self.goal_y = goal_y
-        self.obs_x = obs_x
-        self.obs_y = obs_y
-        self.r_x = [start_x]
-        self.r_y = [start_y]
-        self.out_x = []
-        self.out_y = []
+        self.obs_x = obs_x #Black dots an obstacle consists of (x-coords)
+        self.obs_y = obs_y #Black dots an obstacle consists of (y-coords)
+        self.r_x = [start_x] #Robot x
+        self.r_y = [start_y] #Robot y
+        self.out_x = [] #Blue dots around an obstacle x-coords
+        self.out_y = [] #Blue dots around an obstacle y-coords
+        #self.phi = math.atan((goal_y - start_y) / (goal_x - start_x))
         for o_x, o_y in zip(obs_x, obs_y):
             for add_x, add_y in zip([1, 0, -1, -1, -1, 0, 1, 1],
                                     [1, 1, 1, 0, -1, -1, -1, 0]):
@@ -33,8 +36,19 @@ class BugPlanner:
                     self.out_x.append(cand_x), self.out_y.append(cand_y)
 
     def mov_normal(self):
+    #TODO: CHANGE THIS SHITTY MOTION TO A CORRECT M-LINE
+        """
+        if self.tan == np.inf or self.tan == -np.inf:
+            return self.r_x[-1] + np.sign(self.goal_x - self.r_x[-1]), \
+                   self.r_y[-1] + np.sign(self.goal_y - self.r_y[-1])
+        elif self.tan > 1 or self.tan < -1:
+            x = 
+            return self.r_x[-1] + np.sign(self.goal_x - self.r_x[-1]), \
+        """
         return self.r_x[-1] + np.sign(self.goal_x - self.r_x[-1]), \
-               self.r_y[-1] + np.sign(self.goal_y - self.r_y[-1])
+                   self.r_y[-1] + np.sign(self.goal_y - self.r_y[-1])
+        
+                   
 
     def mov_to_next_obs(self, visited_x, visited_y):
         for add_x, add_y in zip([1, 0, -1, 0], [0, 1, 0, -1]):
@@ -59,6 +73,7 @@ class BugPlanner:
         (pick an arbitrary direction), until it is possible
         for you to start moving towards goal in a greedy manner again
         """
+        start_time = time.time()
         mov_dir = 'normal'
         cand_x, cand_y = -np.inf, -np.inf
         if show_animation:
@@ -112,6 +127,8 @@ class BugPlanner:
                 plt.pause(0.001)
         if show_animation:
             plt.show()
+	
+        print(time.time() - start_time)
 
     def bug1(self):
         """
@@ -122,6 +139,7 @@ class BugPlanner:
         closest to your goal and you start moving towards
         goal in a greedy manner from that new point.
         """
+        start_time = time.time()
         mov_dir = 'normal'
         cand_x, cand_y = -np.inf, -np.inf
         exit_x, exit_y = -np.inf, -np.inf
@@ -189,6 +207,8 @@ class BugPlanner:
                 plt.pause(0.001)
         if show_animation:
             plt.show()
+        
+        print(time.time() - start_time)
 
     def bug2(self):
         """
@@ -203,6 +223,7 @@ class BugPlanner:
         So, you depart from this point and continue towards the
         goal in a greedy manner
         """
+        start_time = time.time()
         mov_dir = 'normal'
         cand_x, cand_y = -np.inf, -np.inf
         if show_animation:
@@ -273,16 +294,18 @@ class BugPlanner:
         if show_animation:
             plt.show()
 
+        print(time.time() - start_time)
 
 def main(bug_0, bug_1, bug_2):
     # set obstacle positions
     o_x, o_y = [], []
 
-    s_x = 25.0
+    s_x = 35.0
     s_y = 0.0
-    g_x = 25.0
-    g_y = 40.0
-
+    g_x = 35.0
+    g_y = 50.0
+    #TODO: ADD INITIAL M-LINE PHI ANGLE CALCULATION TO BE TRANSFERED TO BUGX FUNCTION
+    #AND REFRESHED INSIDE THE BUGPLANNING OBJECT ACCORDING TO CURRENT POSITION 
     for i in range(10, 40):
         for j in range(10, 15):
             o_x.append(i)
@@ -307,6 +330,17 @@ def main(bug_0, bug_1, bug_2):
         for j in range(55, 60):
             o_x.append(i)
             o_y.append(j)
+
+    for i in range(30, 55):
+        for j in range(25, 30):
+            o_x.append(i)
+            o_y.append(j)
+
+    for i in range(10, 40):
+        for j in range(40, 45):
+            o_x.append(i)
+            o_y.append(j)
+
 
     
 
