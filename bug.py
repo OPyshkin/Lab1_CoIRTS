@@ -13,7 +13,7 @@ show_animation = True
 
 
 class BugPlanner:
-    def __init__(self, start_x, start_y, goal_x, goal_y, obs_x, obs_y):
+    def __init__(self, start_x, start_y, goal_x, goal_y, obs_x, obs_y, phi):
         self.goal_x = goal_x
         self.goal_y = goal_y
         self.obs_x = obs_x #Black dots an obstacle consists of (x-coords)
@@ -22,7 +22,7 @@ class BugPlanner:
         self.r_y = [start_y] #Robot y
         self.out_x = [] #Blue dots around an obstacle x-coords
         self.out_y = [] #Blue dots around an obstacle y-coords
-        #self.phi = math.atan((goal_y - start_y) / (goal_x - start_x))
+        self.phi = phi
         for o_x, o_y in zip(obs_x, obs_y):
             for add_x, add_y in zip([1, 0, -1, -1, -1, 0, 1, 1],
                                     [1, 1, 1, 0, -1, -1, -1, 0]):
@@ -35,24 +35,16 @@ class BugPlanner:
                 if valid_point:
                     self.out_x.append(cand_x), self.out_y.append(cand_y)
 
-    def mov_normal(self):
-    #TODO: CHANGE THIS SHITTY MOTION TO A CORRECT M-LINE
-        """
-        if self.tan == np.inf or self.tan == -np.inf:
-            return self.r_x[-1] + np.sign(self.goal_x - self.r_x[-1]), \
-                   self.r_y[-1] + np.sign(self.goal_y - self.r_y[-1])
-        elif self.tan > 1 or self.tan < -1:
-            x = 
-            return self.r_x[-1] + np.sign(self.goal_x - self.r_x[-1]), \
-        """
-        return self.r_x[-1] + np.sign(self.goal_x - self.r_x[-1]), \
-                   self.r_y[-1] + np.sign(self.goal_y - self.r_y[-1])
+    def mov_normal(self):      ### M-line motion
+        return self.r_x[-1] + math.cos(self.phi), \
+               self.r_y[-1] + math.sin(self.phi)
         
                    
-
+    # TODO: FIX MOTION AROUND AN OBSTACLE
     def mov_to_next_obs(self, visited_x, visited_y):
         for add_x, add_y in zip([1, 0, -1, 0], [0, 1, 0, -1]):
-            c_x, c_y = self.r_x[-1] + add_x, self.r_y[-1] + add_y
+            c_x, c_y = math.ceil(self.r_x[-1]) + add_x, \
+                       math.ceil(self.r_y[-1]) + add_y
             for _x, _y in zip(self.out_x, self.out_y):
                 use_pt = True
                 if c_x == _x and c_y == _y:
@@ -64,7 +56,7 @@ class BugPlanner:
                         return c_x, c_y, False
                 if not use_pt:
                     break
-        return self.r_x[-1], self.r_y[-1], True
+        return math.ceil(self.r_x[-1]), math.ceil(self.r_y[-1]), True
 
     def bug0(self):
         """
@@ -73,9 +65,11 @@ class BugPlanner:
         (pick an arbitrary direction), until it is possible
         for you to start moving towards goal in a greedy manner again
         """
-        start_time = time.time()
+        #start_time = time.time()
+        # TODO: INSERT CONSTANT ROBOT MOTION MODEL INTO DESCRETE ENVIRONMENT MODEL
+        # TODO: REANALIZE FUCTIONS OF cand AND r_ 
         mov_dir = 'normal'
-        cand_x, cand_y = -np.inf, -np.inf
+        cand_x, cand_y = -np.inf, -np.inf ####Like...candidate???
         if show_animation:
             plt.plot(self.obs_x, self.obs_y, ".k")
             plt.plot(self.r_x[-1], self.r_y[-1], "og")
@@ -85,42 +79,46 @@ class BugPlanner:
             plt.title('BUG 0')
 
         for x_ob, y_ob in zip(self.out_x, self.out_y):
-            if self.r_x[-1] == x_ob and self.r_y[-1] == y_ob:
+            if math.ceil(self.r_x[-1]) == x_ob and math.ceil(self.r_y[-1]) == y_ob:
+                print("AAAAAA")
                 mov_dir = 'obs'
                 break
 
         visited_x, visited_y = [], []
         while True:
-            if self.r_x[-1] == self.goal_x and \
-                    self.r_y[-1] == self.goal_y:
+            if cand_x == self.goal_x and \
+                    cand_y == self.goal_y:
                 break
             if mov_dir == 'normal':
-                cand_x, cand_y = self.mov_normal()
+                real_x, real_y = self.mov_normal()
+                cand_x = math.ceil(real_x)
+                cand_y = math.ceil(real_y)
             if mov_dir == 'obs':
                 cand_x, cand_y, _ = self.mov_to_next_obs(visited_x, visited_y)
             if mov_dir == 'normal':
                 found_boundary = False
                 for x_ob, y_ob in zip(self.out_x, self.out_y):
                     if cand_x == x_ob and cand_y == y_ob:
-                        self.r_x.append(cand_x), self.r_y.append(cand_y)
+                        self.r_x.append(real_x), self.r_y.append(real_y)
                         visited_x[:], visited_y[:] = [], []
                         visited_x.append(cand_x), visited_y.append(cand_y)
                         mov_dir = 'obs'
+                        print("OOOOOOOOOOOOOOO")
                         found_boundary = True
                         break
                 if not found_boundary:
-                    self.r_x.append(cand_x), self.r_y.append(cand_y)
+                    self.r_x.append(real_x), self.r_y.append(real_y)
             elif mov_dir == 'obs':
                 can_go_normal = True
                 for x_ob, y_ob in zip(self.obs_x, self.obs_y):
-                    if self.mov_normal()[0] == x_ob and \
-                            self.mov_normal()[1] == y_ob:
+                    if math.ceil(self.mov_normal()[0]) == x_ob and \
+                            math.ceil(self.mov_normal()[1]) == y_ob:
                         can_go_normal = False
                         break
                 if can_go_normal:
                     mov_dir = 'normal'
                 else:
-                    self.r_x.append(cand_x), self.r_y.append(cand_y)
+                    self.r_x.append(real_x), self.r_y.append(real_y)
                     visited_x.append(cand_x), visited_y.append(cand_y)
             if show_animation:
                 plt.plot(self.r_x, self.r_y, "-r")
@@ -128,7 +126,7 @@ class BugPlanner:
         if show_animation:
             plt.show()
 	
-        print(time.time() - start_time)
+        ###print(time.time() - start_time)
 
     def bug1(self):
         """
@@ -303,9 +301,13 @@ def main(bug_0, bug_1, bug_2):
     s_x = 35.0
     s_y = 0.0
     g_x = 35.0
-    g_y = 50.0
-    #TODO: ADD INITIAL M-LINE PHI ANGLE CALCULATION TO BE TRANSFERED TO BUGX FUNCTION
-    #AND REFRESHED INSIDE THE BUGPLANNING OBJECT ACCORDING TO CURRENT POSITION 
+    g_y = 70.0
+    if (s_x == g_x):
+        phi = (math.pi / 2) * np.sign(g_y - s_y)
+    else:
+        phi = math.atan((g_y - s_y) / (g_x - s_x))
+
+    
     for i in range(10, 40):
         for j in range(10, 15):
             o_x.append(i)
@@ -340,16 +342,12 @@ def main(bug_0, bug_1, bug_2):
         for j in range(40, 45):
             o_x.append(i)
             o_y.append(j)
-
-
     
 
 
 
-
-
     if bug_0:
-        my_Bug = BugPlanner(s_x, s_y, g_x, g_y, o_x, o_y)
+        my_Bug = BugPlanner(s_x, s_y, g_x, g_y, o_x, o_y, phi)
         my_Bug.bug0()
     if bug_1:
         my_Bug = BugPlanner(s_x, s_y, g_x, g_y, o_x, o_y)
