@@ -235,18 +235,66 @@ def main():
         ox.append(-10.0)
         oy.append(i)
 
-    # obstacles
-
+    # obstacles 1
+    '''
     for i in range(-10, 15):
         ox.append(15.0)
         oy.append(i)
     for i in range(0, 25):
         ox.append(40.0)
         oy.append(60.0 - i)
-    for i in range(15, 25):
-        ox.append(30.0)
+    for i in range(0, 50):
+        ox.append(27.0)
         oy.append(i)
+    for i in range(0, 50):
+        ox.append(27.0)
+        oy.append(i)
+    for i in range(0, 20):
+        ox.append(60.0-i)
+        oy.append(25.0)
+    for i in range(0, 20):
+        ox.append(40.0)
+        oy.append(25.0 - i)
+    for i in range(0, 20):
+        ox.append(27.0-i)
+        oy.append(25.0)
+    '''
 
+    # obstacles 2
+    '''
+    for i in range(0, 25):
+        ox.append(i)
+        oy.append(0)
+    for i in range(0, 26):
+        ox.append(i)
+        oy.append(40)
+    for i in range(0, 40):
+        ox.append(25)
+        oy.append(i)
+    for i in range(0, 40):
+        ox.append(0)
+        oy.append(i)
+    '''
+
+    # obstacles 3
+    
+    for i in range(-10,50):
+        ox.append(i)
+        oy.append(5)
+    for i in range(10,60):
+        ox.append(i)
+        oy.append(15)
+    for i in range(-10,30):
+        ox.append(i)
+        oy.append(25)
+    for i in range(20,60):
+        ox.append(i)
+        oy.append(45)
+
+
+
+    
+    
     if show_animation:  # pragma: no cover
         plt.plot(ox, oy, ".k")
         plt.plot(sx, sy, "og")
