@@ -35,16 +35,24 @@ class BugPlanner:
                 if valid_point:
                     self.out_x.append(cand_x), self.out_y.append(cand_y)
 
-    def mov_normal(self):      ### M-line motion
+    def my_round(self, num):
+        if num % 1 >= 0.5:
+            return math.ceil(num)
+        else:
+            return num // 1
+
+    def mov_normal(self):     ### M-line motion
+        if self.r_x[0] == self.goal_x:
+            return self.r_x[0], \
+                   self.r_y[-1] + math.sin(self.phi)
         return self.r_x[-1] + math.cos(self.phi), \
                self.r_y[-1] + math.sin(self.phi)
-        
                    
-    # TODO: FIX MOTION AROUND AN OBSTACLE
     def mov_to_next_obs(self, visited_x, visited_y):
+        
         for add_x, add_y in zip([1, 0, -1, 0], [0, 1, 0, -1]):
-            c_x, c_y = math.ceil(self.r_x[-1]) + add_x, \
-                       math.ceil(self.r_y[-1]) + add_y
+            c_x, c_y = self.my_round(self.r_x[-1]) + add_x, \
+                       self.my_round(self.r_y[-1]) + add_y
             for _x, _y in zip(self.out_x, self.out_y):
                 use_pt = True
                 if c_x == _x and c_y == _y:
@@ -56,7 +64,8 @@ class BugPlanner:
                         return c_x, c_y, False
                 if not use_pt:
                     break
-        return math.ceil(self.r_x[-1]), math.ceil(self.r_y[-1]), True
+        return c_x, c_y, True
+        
 
     def bug0(self):
         """
@@ -65,9 +74,8 @@ class BugPlanner:
         (pick an arbitrary direction), until it is possible
         for you to start moving towards goal in a greedy manner again
         """
-        #start_time = time.time()
-        # TODO: INSERT CONSTANT ROBOT MOTION MODEL INTO DESCRETE ENVIRONMENT MODEL
-        # TODO: REANALIZE FUCTIONS OF cand AND r_ 
+        start_time = time.time() #FIRST TIME CHECKPOINT
+
         mov_dir = 'normal'
         cand_x, cand_y = -np.inf, -np.inf ####Like...candidate???
         if show_animation:
@@ -78,9 +86,8 @@ class BugPlanner:
             plt.grid(True)
             plt.title('BUG 0')
 
-        for x_ob, y_ob in zip(self.out_x, self.out_y):
-            if math.ceil(self.r_x[-1]) == x_ob and math.ceil(self.r_y[-1]) == y_ob:
-                print("AAAAAA")
+        for x_ob, y_ob in zip(self.out_x, self.out_y): 
+            if self.my_round(self.r_x[-1]) == x_ob and self.my_round(self.r_y[-1]) == y_ob:
                 mov_dir = 'obs'
                 break
 
@@ -88,45 +95,92 @@ class BugPlanner:
         while True:
             if cand_x == self.goal_x and \
                     cand_y == self.goal_y:
+                self.r_x.append(cand_x), self.r_y.append(cand_y)
+                break
+            if math.fabs(self.r_x[-1]) > 100 or math.fabs(self.r_y[-1]) > 100:
                 break
             if mov_dir == 'normal':
                 real_x, real_y = self.mov_normal()
-                cand_x = math.ceil(real_x)
-                cand_y = math.ceil(real_y)
+                cand_x = self.my_round(real_x)
+                cand_y = self.my_round(real_y)
             if mov_dir == 'obs':
-                cand_x, cand_y, _ = self.mov_to_next_obs(visited_x, visited_y)
+                cand_x, cand_y, was_here = self.mov_to_next_obs(visited_x, visited_y)
+                if was_here:
+                    break
             if mov_dir == 'normal':
                 found_boundary = False
+                
                 for x_ob, y_ob in zip(self.out_x, self.out_y):
                     if cand_x == x_ob and cand_y == y_ob:
-                        self.r_x.append(real_x), self.r_y.append(real_y)
+                        preobs_x = cand_x
+                        preobs_y = cand_y
+                
+                for x_ob, y_ob in zip(self.obs_x, self.obs_y):
+                    if cand_x == x_ob and cand_y == y_ob:
+                        self.r_x.append(preobs_x), self.r_y.append(preobs_y)
                         visited_x[:], visited_y[:] = [], []
-                        visited_x.append(cand_x), visited_y.append(cand_y)
+                        visited_x.append(preobs_x), visited_y.append(preobs_y)
                         mov_dir = 'obs'
-                        print("OOOOOOOOOOOOOOO")
                         found_boundary = True
                         break
                 if not found_boundary:
                     self.r_x.append(real_x), self.r_y.append(real_y)
             elif mov_dir == 'obs':
                 can_go_normal = True
+                path_clear = True 
+                if (cand_x == self.goal_x):
+                    self.phi = (math.pi / 2) * np.sign(self.goal_y - cand_y)
+                else:
+                    self.phi = math.atan((self.goal_y - cand_y) / (self.goal_x - cand_x))
+                if self.goal_x < cand_x:
+                    self.phi += math.pi
+
+                a = min(self.goal_x, cand_x)
+                b = max(self.goal_x, cand_x)
+
+                x_m = []
+                y_m = []
+                
+                d = 0
+                if a == b:
+                    a = min(self.goal_y, cand_y)
+                    b = max(self.goal_y, cand_y)
+                    while a + d <= b:
+                        x_m.append(cand_x)
+                        y_m.append(a + d)
+                        d += 1
+                else:
+                    while a + d <= b:
+                        x_m.append(a + d)
+                        d += 0.076923
+                    for x in list(x_m): 
+                        y = (math.tan(self.phi) * (x - cand_x) + cand_y)
+                        y_m.append(y)
+                
+                for x, y in zip(self.obs_x, self.obs_y):
+                    for x_, y_ in zip(x_m, y_m):
+                        if self.my_round(x_) == x and self.my_round(y_) == y:
+                            path_clear = False
+                            break
+
+                c_real_x, c_real_y = self.mov_normal()
                 for x_ob, y_ob in zip(self.obs_x, self.obs_y):
-                    if math.ceil(self.mov_normal()[0]) == x_ob and \
-                            math.ceil(self.mov_normal()[1]) == y_ob:
+                    if self.my_round(c_real_x + np.sign(math.cos(self.phi)) / 2) == x_ob and \
+                       self.my_round(c_real_y + np.sign(math.sin(self.phi)) / 2) == y_ob:
                         can_go_normal = False
                         break
-                if can_go_normal:
+
+                if can_go_normal and path_clear:
                     mov_dir = 'normal'
                 else:
-                    self.r_x.append(real_x), self.r_y.append(real_y)
                     visited_x.append(cand_x), visited_y.append(cand_y)
+                self.r_x.append(cand_x), self.r_y.append(cand_y)
             if show_animation:
                 plt.plot(self.r_x, self.r_y, "-r")
-                plt.pause(0.001)
+                plt.pause(0.00001)
+        print(time.time() - start_time) #SECOND TIME CHECKPOINT
         if show_animation:
             plt.show()
-	
-        ###print(time.time() - start_time)
 
     def bug1(self):
         """
@@ -278,7 +332,7 @@ class BugPlanner:
                 if not found_boundary:
                     self.r_x.append(cand_x), self.r_y.append(cand_y)
             elif mov_dir == 'obs':
-                self.r_x.append(cand_x), self.r_y.append(cand_y)
+                #self.r_x.append(cand_x), self.r_y.append(cand_y)
                 visited_x.append(cand_x), visited_y.append(cand_y)
                 for i_x, i_y in zip(range(len(hit_x)), range(len(hit_y))):
                     if cand_x == hit_x[i_x] and cand_y == hit_y[i_y]:
@@ -295,19 +349,38 @@ class BugPlanner:
         print(time.time() - start_time)
 
 def main(bug_0, bug_1, bug_2):
+
+    def my_round(num):
+        if a % 1 >= 0.5:
+            return math.ceil(a)
+        else:
+            return a // 1
+
     # set obstacle positions
     o_x, o_y = [], []
 
-    s_x = 35.0
-    s_y = 0.0
-    g_x = 35.0
-    g_y = 70.0
+    s_x = 23.0
+    s_y = 4.0
+    g_x = 45.0
+    g_y = 35.0
     if (s_x == g_x):
         phi = (math.pi / 2) * np.sign(g_y - s_y)
     else:
         phi = math.atan((g_y - s_y) / (g_x - s_x))
+    if g_x < s_x:
+        phi += math.pi
+    """
+    for i in range(8, 20):
+        for j in range(8, 25):
+            o_x.append(i)
+            o_y.append(j)
 
-    
+    for i in range(5, 18):
+        for j in range(30, 35):
+            o_x.append(i)
+            o_y.append(j)
+
+    """
     for i in range(10, 40):
         for j in range(10, 15):
             o_x.append(i)
@@ -353,7 +426,7 @@ def main(bug_0, bug_1, bug_2):
         my_Bug = BugPlanner(s_x, s_y, g_x, g_y, o_x, o_y)
         my_Bug.bug1()
     if bug_2:
-        my_Bug = BugPlanner(s_x, s_y, g_x, g_y, o_x, o_y)
+        my_Bug = BugPlanner(s_x, s_y, g_x, g_y, o_x, o_y, phi)
         my_Bug.bug2()
 
 
