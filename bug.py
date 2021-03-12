@@ -178,7 +178,7 @@ class BugPlanner:
                 self.r_x.append(cand_x), self.r_y.append(cand_y)
             if show_animation:
                 plt.plot(self.r_x, self.r_y, "-r")
-                plt.pause(0.00001)
+                #plt.pause(0.1)
         print(time.time() - start_time) #SECOND TIME CHECKPOINT
         if show_animation:
             plt.show()
@@ -263,6 +263,7 @@ class BugPlanner:
                     dist = d
                 if back_to_start and not go_back:
                     go_back = True 
+                    self.r_x, self.r_y = [], []
                     del visited_x[2:]
                     del visited_x[0]
                     del visited_y[2:]
@@ -283,12 +284,15 @@ class BugPlanner:
                         self.phi += math.pi
 
             if show_animation:
-                plt.plot(self.r_x, self.r_y, "-r")
-                plt.pause(0.00001)
+                if go_back:
+                    
+                    plt.plot(self.r_x, self.r_y, "-b")
+                else:
+                    plt.plot(self.r_x, self.r_y, "-r")
+                #plt.pause(0.1)
+        print(time.time() - start_time)
         if show_animation:
             plt.show()
-        
-        print(time.time() - start_time)
 
     def bug2(self):
         """
@@ -304,6 +308,7 @@ class BugPlanner:
         goal in a greedy manner
         """
         start_time = time.time()
+        exit_x, exit_y = -np.inf, -np.inf
         mov_dir = 'normal'
         cand_x, cand_y = -np.inf, -np.inf
         if show_animation:
@@ -315,16 +320,24 @@ class BugPlanner:
         straight_x, straight_y = [self.r_x[-1]], [self.r_y[-1]]
         hit_x, hit_y = [], []
         while True:
-            if straight_x[-1] == self.goal_x and \
-                    straight_y[-1] == self.goal_y:
+            if self.my_round(straight_x[-1]) == self.goal_x and \
+                    self.my_round(straight_y[-1]) == self.goal_y:
                 break
+            """
             c_x = straight_x[-1] + np.sign(self.goal_x - straight_x[-1])
             c_y = straight_y[-1] + np.sign(self.goal_y - straight_y[-1])
+            """
+            c_real_x = straight_x[-1] + math.cos(self.phi)
+            c_real_y = straight_y[-1] + math.sin(self.phi)
+            c_x = self.my_round(c_real_x)
+            c_y = self.my_round(c_real_y)
+
             for x_ob, y_ob in zip(self.out_x, self.out_y):
                 if c_x == x_ob and c_y == y_ob:
-                    hit_x.append(c_x), hit_y.append(c_y)
+                    hit_x.append(c_real_x), hit_y.append(c_real_y)
                     break
-            straight_x.append(c_x), straight_y.append(c_y)
+            straight_x.append(c_real_x), straight_y.append(c_real_y)
+
         if show_animation:
             plt.plot(straight_x, straight_y, ",")
             plt.plot(hit_x, hit_y, "d")
@@ -338,43 +351,73 @@ class BugPlanner:
 
         visited_x, visited_y = [], []
         while True:
-            if self.r_x[-1] == self.goal_x \
-                    and self.r_y[-1] == self.goal_y:
+            #goal achievement condition
+            if cand_x == self.goal_x and \
+                    cand_y == self.goal_y:
+                self.r_x.append(cand_x), self.r_y.append(cand_y)
                 break
-            if mov_dir == 'normal':
-                cand_x, cand_y = self.mov_normal()
-            if mov_dir == 'obs':
+            if math.fabs(self.r_x[-1]) > 100 or math.fabs(self.r_y[-1]) > 100: #test condition (to be cut)
+                break
+
+            if mov_dir == 'normal': #normal motion step
+                real_x, real_y = self.mov_normal()
+                cand_x = self.my_round(real_x)
+                cand_y = self.my_round(real_y)
+            
+            if mov_dir == 'obs': #obstacle motion step
                 cand_x, cand_y, _ = self.mov_to_next_obs(visited_x, visited_y)
-            if mov_dir == 'normal':
+
+            if mov_dir == 'normal': #normal motion until obstacle is found
                 found_boundary = False
-                for x_ob, y_ob in zip(self.out_x, self.out_y):
+                
+                for x_ob, y_ob in zip(self.out_x, self.out_y): #obstacle approach check 
                     if cand_x == x_ob and cand_y == y_ob:
-                        self.r_x.append(cand_x), self.r_y.append(cand_y)
+                        preobs_x = cand_x
+                        preobs_y = cand_y
+                
+                for x_ob, y_ob in zip(self.obs_x, self.obs_y): #obstacle detection
+                    if cand_x == x_ob and cand_y == y_ob:
+                        self.r_x.append(preobs_x), self.r_y.append(preobs_y)
                         visited_x[:], visited_y[:] = [], []
-                        visited_x.append(cand_x), visited_y.append(cand_y)
+                        visited_x.append(preobs_x), visited_y.append(preobs_y)
+                        mov_dir = 'obs'
                         del hit_x[0]
                         del hit_y[0]
-                        mov_dir = 'obs'
                         found_boundary = True
-                        break
+                        
                 if not found_boundary:
-                    self.r_x.append(cand_x), self.r_y.append(cand_y)
+                    self.r_x.append(real_x), self.r_y.append(real_y)
+
             elif mov_dir == 'obs':
-                #self.r_x.append(cand_x), self.r_y.append(cand_y)
-                visited_x.append(cand_x), visited_y.append(cand_y)
-                for i_x, i_y in zip(range(len(hit_x)), range(len(hit_y))):
-                    if cand_x == hit_x[i_x] and cand_y == hit_y[i_y]:
-                        del hit_x[i_x]
-                        del hit_y[i_y]
-                        mov_dir = 'normal'
+                go_m = True
+                m_crossed = False #m_line crossing detection
+                for x_m, y_m in zip(hit_x, hit_y):
+                    if self.my_round(x_m) == cand_x and self.my_round(y_m) == cand_y:
+                        exit_x = x_m
+                        exit_y = y_m
+                        m_crossed = True
                         break
+
+                c_real_x, c_real_y = self.mov_normal()
+                for x_ob, y_ob in zip(self.obs_x, self.obs_y):
+                    if self.my_round(c_real_x) == x_ob and \
+                       self.my_round(c_real_y) == y_ob:
+                        go_m = False
+                        break
+                
+                if m_crossed and go_m:
+                    mov_dir = 'normal'
+                    self.r_x.append(exit_x), self.r_y.append(exit_y)
+                else:
+                    self.r_x.append(cand_x), self.r_y.append(cand_y)
+                    visited_x.append(cand_x), visited_y.append(cand_y)
+
             if show_animation:
                 plt.plot(self.r_x, self.r_y, "-r")
-                plt.pause(0.001)
+                #plt.pause(0.1)
+        print(time.time() - start_time)
         if show_animation:
             plt.show()
-
-        print(time.time() - start_time)
 
 def main(bug_0, bug_1, bug_2):
 
@@ -387,10 +430,10 @@ def main(bug_0, bug_1, bug_2):
     # set obstacle positions
     o_x, o_y = [], []
 
-    s_x = 23.0
-    s_y = 4.0
-    g_x = 15.0
-    g_y = 37.0
+    s_x = 0.0
+    s_y = 0.0
+    g_x = 70.0
+    g_y = 70.0
     if (s_x == g_x):
         phi = (math.pi / 2) * np.sign(g_y - s_y)
     else:
@@ -398,13 +441,19 @@ def main(bug_0, bug_1, bug_2):
     if g_x < s_x:
         phi += math.pi
     """
-    for i in range(8, 20):
-        for j in range(8, 25):
+    for i in range(24, 30):
+        for j in range(15, 25):
+            o_x.append(i)
+            o_y.append(j)
+    
+
+    for i in range(20, 40):
+        for j in range(30, 35):
             o_x.append(i)
             o_y.append(j)
 
-    for i in range(5, 18):
-        for j in range(30, 35):
+    for i in range(35, 40):
+        for j in range(15, 30):
             o_x.append(i)
             o_y.append(j)
 
@@ -419,23 +468,48 @@ def main(bug_0, bug_1, bug_2):
             o_x.append(i)
             o_y.append(j)
 
+    for i in range(40, 45):
+        for j in range(34, 45):
+            o_x.append(i)
+            o_y.append(j)
+
     for i in range(10, 15):
-        for j in range(15, 60):
+        for j in range(15, 21):
+            o_x.append(i)
+            o_y.append(j)
+
+    for i in range(10, 15):
+        for j in range(26, 60):
             o_x.append(i)
             o_y.append(j)
 
     for i in range(55, 60):
-        for j in range(15, 60):
+        for j in range(15, 44):
             o_x.append(i)
             o_y.append(j)
 
-    for i in range(10, 60):
+    for i in range(55, 60):
+        for j in range(49, 60):
+            o_x.append(i)
+            o_y.append(j)
+
+    for i in range(10, 20):
+        for j in range(55, 60):
+            o_x.append(i)
+            o_y.append(j)
+
+    for i in range(30, 60):
         for j in range(55, 60):
             o_x.append(i)
             o_y.append(j)
 
     for i in range(30, 55):
         for j in range(25, 30):
+            o_x.append(i)
+            o_y.append(j)
+
+    for i in range(25, 30):
+        for j in range(25, 36):
             o_x.append(i)
             o_y.append(j)
 
@@ -459,4 +533,4 @@ def main(bug_0, bug_1, bug_2):
 
 
 if __name__ == '__main__':
-    main(bug_0=False, bug_1=True, bug_2=False)
+    main(bug_0=True, bug_1=True, bug_2=True)
